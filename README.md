@@ -2,14 +2,14 @@
 
 An AI-powered application for facial and voice emotion detection with an intelligent chatbot and emotion-based recommendations, focusing on mental well-being.
 
-## 🎯 Features
+## Features
 
 - **Facial Emotion Detection**: Real-time emotion recognition using OpenCV and DeepFace
 - **Voice Emotion Detection**: Speech emotion analysis using Librosa and SpeechBrain
 - **AI Chatbot**: Context-aware conversational assistant with emotion understanding
 - **Personalized Recommendations**: Emotion-based suggestions for well-being improvement
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Backend
 - Python 3.x
@@ -34,7 +34,7 @@ An AI-powered application for facial and voice emotion detection with an intelli
 - Docker (Containerization)
 - PostgreSQL (Production database)
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 EmotionSense/
@@ -55,7 +55,7 @@ EmotionSense/
 └── requirements.txt           # Python dependencies
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Python 3.9+
@@ -92,23 +92,3 @@ python manage.py migrate
 ```bash
 python manage.py runserver
 ```
-
-## 👥 Team
-
-- ML Engineer: Emotion detection models and training
-- Full-Stack Developer: Backend API and frontend integration
-
-## 📅 Development Timeline
-
-- **Weeks 1-2**: Setup and prototyping (emotion detection)
-- **Weeks 3-6**: Component development (backend, ML models, frontend)
-- **Weeks 7-9**: Integration and testing (chatbot, end-to-end)
-- **Week 10**: Deployment and final improvements
-
-## 📝 License
-
-[Your License]
-
-## 🤝 Contributing
-
-[Contributing guidelines]

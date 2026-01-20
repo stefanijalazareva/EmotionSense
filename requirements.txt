@@ -10,27 +10,21 @@ psycopg2-binary==2.9.9
 
 # Machine Learning - Computer Vision
 opencv-python==4.9.0.80
-opencv-contrib-python==4.9.0.80
 deepface==0.0.90
-tensorflow==2.15.0
-torch==2.1.2
-torchvision==0.16.2
+tf-keras==2.16.0
+pillow==10.2.0
 
-# Machine Learning - Audio/Speech
+# Machine Learning - Audio/Speech  
 librosa==0.10.1
 soundfile==0.12.1
-speechbrain==0.5.16
-transformers==4.36.2
+numpy==1.24.3
 
 # NLP and AI
 openai==1.7.2
-huggingface-hub==0.20.2
-sentencepiece==0.1.99
+transformers==4.36.2
 
 # Data Processing
-numpy==1.26.3
 pandas==2.1.4
-Pillow==10.2.0
 scipy==1.11.4
 
 # Utilities

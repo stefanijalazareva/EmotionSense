@@ -26,6 +26,10 @@ urlpatterns = [
     path('api/chatbot/', include('apps.chatbot.urls')),
     path('api/recommendations/', include('apps.recommendations.urls')),
     
-    # Frontend (will add templates later)
+    # Frontend
     path('', TemplateView.as_view(template_name='home.html'), name='home'),
+    path('emotion-detect/', TemplateView.as_view(template_name='emotion_detect.html'), name='emotion_detect'),
+    path('chatbot/', TemplateView.as_view(template_name='chatbot.html'), name='chatbot'),
+    path('dashboard/', TemplateView.as_view(template_name='dashboard.html'), name='dashboard'),
+    path('test-emotion/', TemplateView.as_view(template_name='test_emotion.html'), name='test_emotion'),
 ]

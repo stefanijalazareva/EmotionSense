@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Detection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="file"],
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .emotion-result {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .confidence {
+            font-size: 18px;
+            color: #666;
+        }
+        .all-emotions {
+            margin-top: 15px;
+        }
+        .emotion-bar {
+            margin: 8px 0;
+        }
+        .emotion-bar-fill {
+            height: 25px;
+            background: linear-gradient(to right, #007bff, #00d4ff);
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            color: white;
+            font-weight: bold;
+        }
+        #preview {
+            max-width: 100%;
+            max-height: 400px;
+            margin-top: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        .auth-section {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.logged-in {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.logged-out {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Facial Emotion Detection Test</h1>
+        
+        <!-- Authentication Section -->
+        <div class="auth-section">
+            <h3>Authentication Status: <span id="authStatus" class="status logged-out">Not Logged In</span></h3>
+            <div id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" placeholder="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" placeholder="Enter your password">
+                </div>
+                <button onclick="login()">Login</button>
+            </div>
+            <div id="loggedInInfo" style="display: none;">
+                <p>Logged in as: <strong id="currentUser"></strong></p>
+                <button onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- Detection Form -->
+        <div id="detectionForm" style="display: none;">
+            <div class="form-group">
+                <label for="imageFile">Select Image with Face:</label>
+                <input type="file" id="imageFile" accept="image/*" onchange="previewImage(event)">
+                <img id="preview" />
+            </div>
+
+            <button onclick="detectEmotion()" id="detectBtn">Detect Emotion</button>
+
+            <div id="result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let authToken = localStorage.getItem('authToken');
+        let currentUsername = localStorage.getItem('username');
+
+        // Check auth status on load
+        window.onload = function() {
+            if (authToken) {
+                showLoggedIn(currentUsername);
+            }
+        };
+
+        function previewImage(event) {
+            const preview = document.getElementById('preview');
+            const file = event.target.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                alert('Please enter both username and password');
+                return;
+            }
+
+            try {
+                // For Django session auth, we need to get CSRF token first
+                const csrfToken = await getCSRFToken();
+                
+                const response = await fetch(`${API_BASE}/admin/login/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken
+                    },
+                    credentials: 'include',
+                    body: new URLSearchParams({
+                        'username': username,
+                        'password': password,
+                        'csrfmiddlewaretoken': csrfToken,
+                        'next': '/'
+                    })
+                });
+
+                if (response.ok || response.redirected) {
+                    authToken = 'session'; 
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('username', username);
+                    showLoggedIn(username);
+                    alert('Login successful!');
+                } else {
+                    alert('Login failed. Please check your credentials.');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('Login error. Make sure the server is running.');
+            }
+        }
+
+        async function getCSRFToken() {
+            const response = await fetch(`${API_BASE}/admin/login/`, {
+                credentials: 'include'
+            });
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'csrftoken') {
+                    return value;
+                }
+            }
+            return '';
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('username');
+            authToken = null;
+            currentUsername = null;
+            
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('loggedInInfo').style.display = 'none';
+            document.getElementById('detectionForm').style.display = 'none';
+            document.getElementById('authStatus').textContent = 'Not Logged In';
+            document.getElementById('authStatus').className = 'status logged-out';
+        }
+
+        function showLoggedIn(username) {
+            document.getElementById('currentUser').textContent = username;
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('loggedInInfo').style.display = 'block';
+            document.getElementById('detectionForm').style.display = 'block';
+            document.getElementById('authStatus').textContent = 'Logged In';
+            document.getElementById('authStatus').className = 'status logged-in';
+            currentUsername = username;
+        }
+
+        async function detectEmotion() {
+            const imageFile = document.getElementById('imageFile').files[0];
+            const resultDiv = document.getElementById('result');
+            const detectBtn = document.getElementById('detectBtn');
+
+            if (!imageFile) {
+                alert('Please select an image file');
+                return;
+            }
+
+            if (!authToken) {
+                alert('Please login first');
+                return;
+            }
+
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('image', imageFile);
+            formData.append('source', 'face');
+
+            // Get CSRF token
+            const csrfToken = await getCSRFToken();
+
+            detectBtn.disabled = true;
+            detectBtn.textContent = 'Detecting...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/emotions/logs/detect/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    },
+                    credentials: 'include',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    displaySuccess(data);
+                } else {
+                    displayError(data);
+                }
+            } catch (error) {
+                displayError({ error: 'Network error: ' + error.message });
+            } finally {
+                detectBtn.disabled = false;
+                detectBtn.textContent = 'Detect Emotion';
+            }
+        }
+
+        function displaySuccess(data) {
+            const resultDiv = document.getElementById('result');
+            
+            let html = `
+                <h3>Detection Successful</h3>
+                <div class="emotion-result">Emotion: ${data.emotion.toUpperCase()}</div>
+                <div class="confidence">Confidence: ${(data.confidence * 100).toFixed(1)}%</div>
+            `;
+
+            if (data.all_emotions) {
+                html += '<div class="all-emotions"><h4>All Detected Emotions:</h4>';
+                const sortedEmotions = Object.entries(data.all_emotions)
+                    .sort((a, b) => b[1] - a[1]);
+                
+                for (const [emotion, score] of sortedEmotions) {
+                    html += `
+                        <div class="emotion-bar">
+                            <div class="emotion-bar-fill" style="width: ${score}%">
+                                ${emotion}: ${score.toFixed(1)}%
+                            </div>
+                        </div>
+                    `;
+                }
+                html += '</div>';
+            }
+
+            resultDiv.innerHTML = html;
+            resultDiv.className = 'result success';
+            resultDiv.style.display = 'block';
+        }
+
+        function displayError(data) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <h3>Error</h3>
+                <p>${data.error || data.detail || 'Unknown error occurred'}</p>
+            `;
+            resultDiv.className = 'result error';
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

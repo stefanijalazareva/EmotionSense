@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+
+{% block title %}Emotion Detection - EmotionSense{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">
+            Facial Emotion Detection
+        </h1>
+        <p class="mt-2 text-gray-600">Upload an image and let AI detect your emotions</p>
+    </div>
+
+    <!-- Main Card -->
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="p-6">
+            <!-- Upload Section -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Select Image with Face
+                </label>
+                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-indigo-500 transition-colors">
+                    <div class="space-y-1 text-center">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <div class="flex text-sm text-gray-600">
+                            <label for="imageFile" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
+                                <span>Upload a file</span>
+                                <input id="imageFile" name="imageFile" type="file" accept="image/*" class="sr-only" onchange="previewImage(event)">
+                            </label>
+                            <p class="pl-1">or drag and drop</p>
+                        </div>
+                        <p class="text-xs text-gray-500">PNG, JPG, BMP up to 10MB</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Image Preview -->
+            <div id="previewContainer" class="hidden mb-6">
+                <img id="preview" class="mx-auto max-h-96 rounded-lg shadow-md" />
+            </div>
+
+            <!-- Detect Button -->
+            <button 
+                onclick="detectEmotion()" 
+                id="detectBtn"
+                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+                Detect Emotion
+            </button>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="hidden text-center py-8">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <p class="mt-4 text-gray-600">Analyzing your image...</p>
+            </div>
+
+            <!-- Results -->
+            <div id="result" class="hidden mt-6"></div>
+        </div>
+    </div>
+
+    <!-- Recent Detections -->
+    <div id="recentDetections" class="max-w-4xl mx-auto mt-8"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function previewImage(event) {
+        const preview = document.getElementById('preview');
+        const previewContainer = document.getElementById('previewContainer');
+        const file = event.target.files[0];
+        
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                previewContainer.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    async function detectEmotion() {
+        const imageFile = document.getElementById('imageFile').files[0];
+        const resultDiv = document.getElementById('result');
+        const detectBtn = document.getElementById('detectBtn');
+        const loadingState = document.getElementById('loadingState');
+
+        if (!imageFile) {
+            showNotification('Please select an image file', 'error');
+            return;
+        }
+
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        formData.append('source', 'face');
+
+        // Get CSRF token
+        const csrfToken = getCookie('csrftoken');
+
+        // Show loading state
+        detectBtn.disabled = true;
+        loadingState.classList.remove('hidden');
+        resultDiv.classList.add('hidden');
+
+        try {
+            const response = await fetch('/api/emotions/logs/detect/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'include',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                displaySuccess(data);
+            } else {
+                displayError(data);
+            }
+        } catch (error) {
+            displayError({ error: 'Network error: ' + error.message });
+        } finally {
+            detectBtn.disabled = false;
+            loadingState.classList.add('hidden');
+        }
+    }
+
+    function displaySuccess(data) {
+        const resultDiv = document.getElementById('result');
+        
+        // Get emoji for emotion
+        const emotionEmojis = {
+            'happy': '😊',
+            'sad': '😢',
+            'angry': '😠',
+            'fear': '😨',
+            'surprise': '😲',
+            'disgust': '🤢',
+            'neutral': '😐'
+        };
+        
+        const emoji = emotionEmojis[data.emotion] || '😊';
+        
+        let html = `
+            <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                <div class="text-center mb-6">
+                    <span class="text-6xl">${emoji}</span>
+                    <h3 class="text-2xl font-bold text-gray-900 mt-2">
+                        ${data.emotion.charAt(0).toUpperCase() + data.emotion.slice(1)}
+                    </h3>
+                    <p class="text-lg text-gray-600 mt-1">
+                        Confidence: ${(data.confidence * 100).toFixed(1)}%
+                    </p>
+                </div>
+        `;
+
+        if (data.all_emotions) {
+            html += '<div class="mt-6"><h4 class="font-semibold text-gray-700 mb-3">All Detected Emotions:</h4>';
+            const sortedEmotions = Object.entries(data.all_emotions)
+                .sort((a, b) => b[1] - a[1]);
+            
+            for (const [emotion, score] of sortedEmotions) {
+                const percentage = score;
+                const barColor = emotion === data.emotion ? 'bg-indigo-600' : 'bg-gray-400';
+                html += `
+                    <div class="mb-3">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm font-medium text-gray-700">${emotion.charAt(0).toUpperCase() + emotion.slice(1)}</span>
+                            <span class="text-sm font-medium text-gray-700">${percentage.toFixed(1)}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div class="${barColor} h-2.5 rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+        }
+
+        html += `
+                <div class="mt-6 text-center">
+                    <button onclick="clearResults()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg">
+                        Detect Another Image
+                    </button>
+                </div>
+            </div>
+        `;
+
+        resultDiv.innerHTML = html;
+        resultDiv.classList.remove('hidden');
+    }
+
+    function displayError(data) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-red-800 mb-2">Error</h3>
+                <p class="text-red-700">${data.error || data.detail || 'Unknown error occurred'}</p>
+                ${!data.face_detected ? '<p class="text-sm text-red-600 mt-2">Make sure the image contains a clear, visible face.</p>' : ''}
+            </div>
+        `;
+        resultDiv.classList.remove('hidden');
+    }
+
+    function clearResults() {
+        document.getElementById('imageFile').value = '';
+        document.getElementById('preview').src = '';
+        document.getElementById('previewContainer').classList.add('hidden');
+        document.getElementById('result').classList.add('hidden');
+    }
+
+    function showNotification(message, type) {
+        alert(message);
+    }
+</script>
+{% endblock %}
